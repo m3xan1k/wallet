@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask import render_template, request, redirect, url_for
+from flask import render_template, request, redirect, url_for, flash
 from flask.views import MethodView
 
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
@@ -8,6 +8,8 @@ from flask_login import LoginManager, current_user, login_user, logout_user, log
 from flask_wtf import FlaskForm
 from wtforms import StringField, BooleanField, TextAreaField, PasswordField
 from wtforms.validators import DataRequired, Length, EqualTo, Email
+
+from passlib.hash import sha256_crypt
 
 
 app = Flask(__name__)
@@ -25,7 +27,7 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(id):
-    return User.get(id)
+    return User.query.get(int(id))
 
 
 # Forms
@@ -56,8 +58,19 @@ class SignUp(MethodView):
     def post(self):
         form = SignUpForm(request.form)
         if form.validate_on_submit():
+            email = form.email.data
+            username = form.username.data
+            hashed_password = sha256_crypt.encrypt(form.password.data)
+
+            new_user = User(email=email, username=username, password=hashed_password)
+            db.session.add(new_user)
+            db.session.commit()
+
+            login_user(new_user)
+            flash('You successfully registered', category='success')
+
             return redirect(url_for('index'))
-            
+   
         return render_template('signup.html', form=form)
 
 app.add_url_rule('/signup', view_func=SignUp.as_view('signup'))

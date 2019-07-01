@@ -1,10 +1,11 @@
 from app import db
 from datetime import datetime
 from decimal import Decimal
+from flask_login import UserMixin
 
 
 # Models
-class User(db.Model):
+class User(db.Model, UserMixin):
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -29,7 +30,7 @@ class Wallet(db.Model):
     pay_type = db.Column(db.String(30), default='cash')
     balance = db.Column(db.DECIMAL, default=Decimal('0.00'))
 
-    user = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
     operations = db.relationship('Operation', backref='wallet', lazy=True)
 
@@ -45,8 +46,8 @@ class Operation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     total = db.Column(db.DECIMAL, default=Decimal('0.00'))
 
-    category = db.relationship('Category', backref='operations', lazy=True)
-    wallet = db.relationship('Wallet', backref='operations', lazy=True)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+    wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id'), nullable=False)
 
     created = db.Column(db.DateTime, default=datetime.now())
 
@@ -62,7 +63,8 @@ class Category(db.Model):
     name = db.Column(db.String(30), default='Salary')
     is_income = db.Column(db.Boolean, default=True)
 
-    user = db.relationship('User', backref='categories', lazy=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    operations = db.relationship('Operation', backref='category', lazy=True)
 
     created = db.Column(db.DateTime, default=datetime.now())
 
