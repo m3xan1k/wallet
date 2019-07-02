@@ -5,9 +5,9 @@ from flask.views import MethodView
 
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 
-from flask_wtf import FlaskForm
+from wtforms import Form
 from wtforms import StringField, BooleanField, TextAreaField, PasswordField
-from wtforms.validators import DataRequired, Length, EqualTo, Email
+from wtforms.validators import InputRequired, Length, EqualTo, Email
 
 from passlib.hash import sha256_crypt
 
@@ -31,16 +31,16 @@ def load_user(id):
 
 
 # Forms
-class SignUpForm(FlaskForm):
-    email = StringField('Email', validators=[DataRequired(), Email()])
-    username = StringField('Username', validators=[DataRequired(), Length(min=4, max=30)])
-    password = PasswordField('Password', validators=[DataRequired(), Length(min=8, max=80), EqualTo('confirm', message='Passwords must match')])
-    confirm = PasswordField('Confirm Password', validators=[DataRequired()])
+class SignUpForm(Form):
+    email = StringField('Email', [InputRequired(message='Input Required'), Email(message='Email is not correct')])
+    username = StringField('Username', [InputRequired(message='Input Required'), Length(min=4, max=30)])
+    password = PasswordField('Password', [InputRequired(message='Input Required'), Length(min=8, max=80), EqualTo('confirm', message='Passwords must match')])
+    confirm = PasswordField('Confirm Password', [InputRequired(message='Input Required')])
 
 
-class LoginForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
+class LoginForm(Form):
+    username = StringField('Username', validators=[InputRequired(message='Input Required')])
+    password = PasswordField('Password', validators=[InputRequired(message='Input Required')])
 
 
 # Routes
@@ -52,12 +52,12 @@ def index():
 class SignUp(MethodView):
 
     def get(self):
-        form = SignUpForm(request.form)
+        form = SignUpForm()
         return render_template('signup.html', form=form)
 
     def post(self):
         form = SignUpForm(request.form)
-        if form.validate_on_submit():
+        if form.validate():
             email = form.email.data
             username = form.username.data
             hashed_password = sha256_crypt.encrypt(form.password.data)
@@ -76,9 +76,33 @@ class SignUp(MethodView):
 app.add_url_rule('/signup', view_func=SignUp.as_view('signup'))
 
 
-@app.route('/login')
-def login():
-    return render_template('login.html')
+# @app.route('/login')
+# def login():
+#     return render_template('login.html')
+
+
+class Login(MethodView):
+    
+    def get(self):
+        form = LoginForm()
+        return render_template('login.html', form=form)
+
+    def post(self):
+        form = LoginForm(request.form)
+        if form.validate():
+            user = User.query.filter_by(username=form.username.data).first()
+            if user and sha256_crypt.verify(form.password.data, user.password):
+
+                login_user(user)
+                flash('You successfully logged in', category='success')
+                return redirect(url_for('index'))
+
+            flash('Username or Password is not correct', category='danger')
+            return render_template('login.html', form=form)
+
+
+
+app.add_url_rule('/login', view_func=Login.as_view('login'))
 
 
 if __name__ == '__main__':

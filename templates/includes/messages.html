@@ -1,0 +1,21 @@
+{% with messages = get_flashed_messages(with_categories=True)  %}
+    {% if messages %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+{% if form %}
+    {% if form.errors %}
+        {% for field, errors in form.errors|dictsort if errors %}
+            {% for error in errors %}
+                <div class="alert alert-danger">
+                        {{ field }} : {{ error }}
+                </div>
+            {% endfor %}
+        {% endfor %}
+    {% endif %}
+{% endif %}
