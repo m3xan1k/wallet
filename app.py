@@ -11,11 +11,15 @@ from wtforms.validators import InputRequired, Length, EqualTo, Email
 
 from passlib.hash import sha256_crypt
 
+from flask_migrate import Migrate
+
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
 
 db = SQLAlchemy(app)
+migrate = Migrate(app, db)
+
 from models import *
 
 
@@ -100,9 +104,35 @@ class Login(MethodView):
             flash('Username or Password is not correct', category='danger')
             return render_template('login.html', form=form)
 
-
-
 app.add_url_rule('/login', view_func=Login.as_view('login'))
+
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    wallets = db.session.query(Wallet).join(User).filter(User.username == current_user.username).all()
+
+    balance = sum(map((lambda wallet: wallet.balance), wallets))
+    # List of lists
+    operations = list(map((lambda wallet: wallet.operations), wallets))
+    # Making flat list
+    flat_operations = [op for ops in operations for op in ops]
+
+    income_ops = list(filter((lambda operation: operation.is_income == True), flat_operations))
+    income_sum = sum(map((lambda operation: operation.total), income_ops))
+
+    expenses_ops = [op for op in flat_operations if op not in income_ops]
+    expenses_sum = sum(map((lambda operation: operation.total), expenses_ops))
+    
+    context = {
+        'balance': balance,
+        'wallets': wallets,
+        'operations': flat_operations,
+        'income_sum': income_sum,
+        'expenses_sum': expenses_sum,
+    }
+
+    return render_template('dashboard.html', **context)
 
 
 if __name__ == '__main__':

@@ -1,0 +1,92 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+<h1 class="text-center mb-5">{{ current_user.username }}'s Dashboard</h1>
+
+<div class="jumbotron shadow-lg py-4">
+    <h2 class="display-4 text-center"><span class="badge badge-light shadow" disabled>Overall Balance: {{ balance }}</span></h2>
+    <hr class="my-4">
+    <div class="jumbotron bg-white shadow py-4">
+    <h3 class="text-center mb-4">Wallets</h3>
+    {% if wallets %}
+    {% for row in wallets | batch(3) %}
+    <div class="row">
+        {% for wallet in row %}
+        <div class="col-sm-4">
+            <div class="card mb-3">
+                <div class="card-header">{{ wallet.name }} | {{ wallet.pay_type }}</div>
+                <div class="card-body">
+                    <h5 class="card-title">Wallet balance: {{ wallet.balance }}</h5>
+                    <button class="btn btn-light">+</button>
+                    <button class="btn btn-light">—</button>
+                    <a href="/wallet/edit/{{wallet.id}}" class="btn btn-secondary">Edit Wallet</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="text-center">
+        <h3>You have no wallets yet.</h3>
+        <a href="/wallet/create" class="btn btn-dark">Create Wallet</a>
+    </div>
+    {% endif %}
+    </div>
+
+    <div class="row">
+    
+        <div class="col-6">
+            <div class="col bg-white rounded py-2 shadow">
+                <h3 class="text-center mb-3">Last operations</h3>
+                {% if operations %}
+                    {% for operation in operations %}
+                        <div class="alert alert-{{ 'success' if operation.is_income else 'danger' }}">
+                            <div class="row px-3" >
+                                <div class="col-4 p-0 m-0 align-self-center text-dark">
+                                    <p class="mb-0  font-weight-bold">{{ operation.created.strftime('%-d %b') }}</p>
+                                    <p class="mb-0">{{ operation.created.strftime('%H:%M') }}</p>
+                                </div>
+                                <div class="col-4 p-0 m-0 align-self-center text-dark">
+                                   <p class="mb-0  font-weight-bold">{{ operation.category.name }}</p>
+                                </div>
+                                <div class="col-4 p-0 m-0 align-self-center">
+                                    <h4 class="mb-0 text-right"><span class="badge badge-light">{{ operation.total }}</span></h4>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-center">No operations yet</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-6">
+
+            <div class="bg-white rounded shadow mb-4 py-2">
+                <h3 class="text-center mb-3">All Income</h3>
+                {% if income_sum %}
+                    <h3 class="text-center">
+                        <span class="badge badge-success">{{ income_sum }}</span>
+                    </h3>
+                {% endif %}
+            </div>
+
+            <div class="bg-white rounded shadow py-2">
+                <h3 class="text-center mb-3">All Expenses</h3>
+                {% if expenses_sum %}
+                    <h4 class="text-center">
+                        <span class="badge badge-danger">{{ expenses_sum }}</span>
+                    </h4>
+                {% endif %}
+            </div>
+
+        </div>
+    
+    </div>
+
+</div>
+
+{% endblock content %}

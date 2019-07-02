@@ -36,8 +36,14 @@ class Wallet(db.Model):
 
     created = db.Column(db.DateTime, default=datetime.now())
 
+    def change_balance(self, is_income, amount):
+        if is_income:
+            self.balance += Decimal(amount)
+        else:
+            self.balance -= Decimal(amount)
+
     def __repr__(self):
-        return f'<Wallet id: {self.id}, name: {self.name}, user_id: {user.id}>'
+        return f'<Wallet id: {self.id}, name: {self.name}, user_id: {self.user_id}>'
 
 
 class Operation(db.Model):
@@ -45,14 +51,25 @@ class Operation(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     total = db.Column(db.DECIMAL, default=Decimal('0.00'))
+    is_income = db.Column(db.Boolean, default=True)
 
     category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
+
     wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id'), nullable=False)
 
     created = db.Column(db.DateTime, default=datetime.now())
 
+    def __init__(self, total, is_income, wallet_id, category_id=None):
+        self.total = total
+        self.is_income = is_income
+        self.category_id = category_id
+        self.wallet_id = wallet_id
+
+        wallet = Wallet.query.get(wallet_id)
+        wallet.change_balance(is_income, total)
+
     def __repr__(self):
-        return f'<Operation id: {self.id}, wallet_id: {self.wallet.id}, category: {self.category.id}>'
+        return f'<Operation id: {self.id}, wallet_id: {self.wallet_id}, category: {self.category_id}, total: {self.total}>'
 
 
 
@@ -69,4 +86,4 @@ class Category(db.Model):
     created = db.Column(db.DateTime, default=datetime.now())
 
     def __repr__(self):
-        return f'<Category id: {self.id}, name: {self.name}, user_id: {user.id}>'
+        return f'<Category id: {self.id}, name: {self.name}, user_id: {self.user_id}>'
