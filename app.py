@@ -5,10 +5,6 @@ from flask.views import MethodView
 
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 
-from wtforms import Form
-from wtforms import StringField, BooleanField, TextAreaField, PasswordField, SelectField, DecimalField
-from wtforms.validators import InputRequired, Length, EqualTo, Email, DataRequired
-
 from passlib.hash import sha256_crypt
 
 from flask_migrate import Migrate
@@ -23,6 +19,7 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 from models import *
+from forms import *
 
 
 # Login
@@ -38,35 +35,7 @@ def load_user(id):
 
 def legal_wallet(id):
     wallet = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).filter(Wallet.id == id).first()
-    return wallet
-
-
-
-# Forms
-class SignUpForm(Form):
-    email = StringField('Email', [InputRequired(), Email(message='Email is not correct')])
-    username = StringField('Username', [InputRequired(), Length(min=4, max=30)])
-    password = PasswordField('Password', [InputRequired(), Length(min=8, max=80), EqualTo('confirm', message='Passwords must match')])
-    confirm = PasswordField('Confirm Password', [InputRequired()])
-
-
-class LoginForm(Form):
-    username = StringField('Username', validators=[InputRequired()])
-    password = PasswordField('Password', validators=[InputRequired()])
-
-
-class WalletForm(Form):
-    choices = [
-        ('cash', 'cash'),
-        ('card', 'card'),
-        ('bank account', 'bank account'),
-        ('digital wallet', 'digital wallet'),
-        ('crypto wallet', 'crypto wallet'),
-    ]
-
-    name = StringField('Wallet Name', [InputRequired(), Length(min=4, max=30)])
-    pay_type = SelectField('Wallet Type', choices=choices, validators=[InputRequired()])
-    balance = DecimalField('Balance', default=Decimal('0.00'), validators=[InputRequired()])
+    return wallet if wallet else None
 
 
 # Routes
@@ -135,7 +104,7 @@ def dashboard():
     # Making flat list
     flat_operations = [op for ops in operations for op in ops]
 
-    income_ops = list(filter((lambda operation: operation.is_income == True), flat_operations))
+    income_ops = list(filter((lambda operation: operation.op_type == 'income'), flat_operations))
     income_sum = sum(map((lambda operation: operation.total), income_ops))
 
     expenses_ops = [op for op in flat_operations if op not in income_ops]
@@ -221,11 +190,30 @@ class EditWallet(MethodView):
             }
 
             return render_template('edit_wallet.html', **context)
-            
+
         flash('Wrong wallet', category='danger')
         return redirect(url_for('dashboard'))
 
 app.add_url_rule('/wallet/edit/<int:id>', view_func=EditWallet.as_view('edit_wallet'))
+
+
+class CreateOperation(MethodView):
+    def get(self, id):
+        form = OperationForm()
+        wallet = Wallet.query.get(id)
+        categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).filter(Category.cat_type == request.args['type']).all()
+        category_choices = [(cat.id, cat.name) for cat in categories]
+
+        form.op_type = request.args['type']
+        form.category.choices = category_choices
+        context = {
+            'form': form,
+            'wallet': wallet,
+        }
+        return render_template('create_operation.html', **context)
+
+
+app.add_url_rule('/wallet/<int:id>/operation/create', view_func=CreateOperation.as_view('create_operation'))
 
 
 if __name__ == '__main__':

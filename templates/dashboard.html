@@ -17,8 +17,12 @@
                 <div class="card-header">{{ wallet.name }} | {{ wallet.pay_type }}</div>
                 <div class="card-body">
                     <h5 class="card-title">Wallet balance: {{ wallet.balance }}</h5>
-                    <button class="btn btn-light">+</button>
-                    <button class="btn btn-light">—</button>
+                    <a href="/wallet/{{ wallet.id }}/operation/create?type=income" class="btn btn-light">
+                        +
+                    </a>
+                    <a href="/wallet/{{ wallet.id }}/operation/create?type=expense" class="btn btn-light">
+                        —
+                    </a>
                     <a href="/wallet/edit/{{wallet.id}}" class="btn btn-secondary">Edit Wallet</a>
                 </div>
             </div>
@@ -26,6 +30,8 @@
         {% endfor %}
     </div>
     {% endfor %}
+
+    
 
     {% else %}
     <div class="text-center">
@@ -42,7 +48,7 @@
                 <h3 class="text-center mb-3">Last operations</h3>
                 {% if operations %}
                     {% for operation in operations %}
-                        <div class="alert alert-{{ 'success' if operation.is_income else 'danger' }}">
+                        <div class="alert alert-{{ 'success' if operation.op_type == 'income' else 'danger' }}">
                             <div class="row px-3" >
                                 <div class="col-4 p-0 m-0 align-self-center text-dark">
                                     <p class="mb-0  font-weight-bold">{{ operation.created.strftime('%-d %b') }}</p>
@@ -90,3 +96,8 @@
 </div>
 
 {% endblock content %}
+
+{% block scripts %}
+
+
+{% endblock scripts %}
