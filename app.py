@@ -6,12 +6,14 @@ from flask.views import MethodView
 from flask_login import LoginManager, current_user, login_user, logout_user, login_required
 
 from wtforms import Form
-from wtforms import StringField, BooleanField, TextAreaField, PasswordField
-from wtforms.validators import InputRequired, Length, EqualTo, Email
+from wtforms import StringField, BooleanField, TextAreaField, PasswordField, SelectField, DecimalField
+from wtforms.validators import InputRequired, Length, EqualTo, Email, DataRequired
 
 from passlib.hash import sha256_crypt
 
 from flask_migrate import Migrate
+from decimal import Decimal
+from functools import wraps
 
 
 app = Flask(__name__)
@@ -34,17 +36,37 @@ def load_user(id):
     return User.query.get(int(id))
 
 
+def legal_wallet(id):
+    wallet = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).filter(Wallet.id == id).first()
+    return wallet
+
+
+
 # Forms
 class SignUpForm(Form):
-    email = StringField('Email', [InputRequired(message='Input Required'), Email(message='Email is not correct')])
-    username = StringField('Username', [InputRequired(message='Input Required'), Length(min=4, max=30)])
-    password = PasswordField('Password', [InputRequired(message='Input Required'), Length(min=8, max=80), EqualTo('confirm', message='Passwords must match')])
-    confirm = PasswordField('Confirm Password', [InputRequired(message='Input Required')])
+    email = StringField('Email', [InputRequired(), Email(message='Email is not correct')])
+    username = StringField('Username', [InputRequired(), Length(min=4, max=30)])
+    password = PasswordField('Password', [InputRequired(), Length(min=8, max=80), EqualTo('confirm', message='Passwords must match')])
+    confirm = PasswordField('Confirm Password', [InputRequired()])
 
 
 class LoginForm(Form):
-    username = StringField('Username', validators=[InputRequired(message='Input Required')])
-    password = PasswordField('Password', validators=[InputRequired(message='Input Required')])
+    username = StringField('Username', validators=[InputRequired()])
+    password = PasswordField('Password', validators=[InputRequired()])
+
+
+class WalletForm(Form):
+    choices = [
+        ('cash', 'cash'),
+        ('card', 'card'),
+        ('bank account', 'bank account'),
+        ('digital wallet', 'digital wallet'),
+        ('crypto wallet', 'crypto wallet'),
+    ]
+
+    name = StringField('Wallet Name', [InputRequired(), Length(min=4, max=30)])
+    pay_type = SelectField('Wallet Type', choices=choices, validators=[InputRequired()])
+    balance = DecimalField('Balance', default=Decimal('0.00'), validators=[InputRequired()])
 
 
 # Routes
@@ -78,11 +100,6 @@ class SignUp(MethodView):
         return render_template('signup.html', form=form)
 
 app.add_url_rule('/signup', view_func=SignUp.as_view('signup'))
-
-
-# @app.route('/login')
-# def login():
-#     return render_template('login.html')
 
 
 class Login(MethodView):
@@ -133,6 +150,82 @@ def dashboard():
     }
 
     return render_template('dashboard.html', **context)
+
+
+class CreateWallet(MethodView):
+    @login_required
+    def get(self):
+        form = WalletForm()
+        return render_template('create_wallet.html', form=form)
+
+
+    @login_required
+    def post(self):
+        form = WalletForm(request.form)
+        if form.validate():
+            new_wallet = Wallet(
+                name=form.name.data,
+                pay_type=form.pay_type.data,
+                balance=form.balance.data,
+                user_id=current_user.id
+            )
+            db.session.add(new_wallet)
+            db.session.commit()
+            flash('New wallet created', category='success')
+            return redirect(url_for('dashboard'))
+        
+        return render_template('create_wallet.html', form=form)
+
+app.add_url_rule('/wallet/create', view_func=CreateWallet.as_view('create_wallet'))
+
+
+class EditWallet(MethodView):
+    @login_required
+    def get(self, id):
+        if legal_wallet(id):
+            wallet = Wallet.query.get(id)
+            form = WalletForm(
+                name=wallet.name,
+                pay_type=wallet.pay_type,
+                balance=wallet.balance
+            )
+            context = {
+                'wallet': wallet,
+                'form': form,
+            }
+            return render_template('edit_wallet.html', **context)
+        
+        flash('Wrong wallet', category='danger')
+        return redirect(url_for('dashboard'))
+
+
+    @login_required
+    def post(self, id):
+        if legal_wallet(id):
+            wallet = Wallet.query.get(id)
+            form = WalletForm(request.form)
+            if form.validate():
+                
+                wallet.name=form.name.data
+                wallet.pay_type=form.pay_type.data
+                wallet.balance=form.balance.data
+
+                db.session.commit()
+
+                flash('Wallet updated', category='success')
+                return redirect(url_for('dashboard'))
+            
+            context = {
+                'wallet': wallet,
+                'form': form,
+            }
+
+            return render_template('edit_wallet.html', **context)
+            
+        flash('Wrong wallet', category='danger')
+        return redirect(url_for('dashboard'))
+
+app.add_url_rule('/wallet/edit/<int:id>', view_func=EditWallet.as_view('edit_wallet'))
 
 
 if __name__ == '__main__':
