@@ -5,7 +5,7 @@
 
 <h1 class="text-center">Edit Wallet</h1>
 
-<form action="/wallet/edit/{{ wallet.id }}" method="post">
+<form class="mb-4" action="/wallet/edit/{{ wallet.id }}" method="post">
 
     {% for field in form %}
         <div class="form-group">
@@ -13,8 +13,13 @@
             {{ field(class_="form-control") }}
         </div>
     {% endfor %}
-    <button type="submit" class="btn btn-dark">Submit</button>
+    <button type="submit" class="btn btn-warning">Edit</button>
+</form>
+<h2 class="mb-3">Or you can ...</h2>
 
+<form action="/wallet/delete/{{ wallet.id }}" method="POST">
+    <input type="hidden">
+    <button type="submit" class="btn btn-danger">Delete Wallet</button>
 </form>
 
 {% endblock content %}

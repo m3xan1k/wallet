@@ -11,6 +11,9 @@ from flask_migrate import Migrate
 from decimal import Decimal
 from functools import wraps
 
+from werkzeug import Request
+
+
 
 app = Flask(__name__)
 app.config.from_pyfile('config.py')
@@ -33,9 +36,29 @@ def load_user(id):
     return User.query.get(int(id))
 
 
-def legal_wallet(id):
-    wallet = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).filter(Wallet.id == id).first()
+# Check if someone tries to access another user's wallet 
+def legal_wallet(wallet_id):
+    wallet = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).filter(Wallet.id == wallet_id).first()
     return wallet if wallet else None
+
+
+# Request middleware
+class MethodRewriteMiddleware(object):
+    def __init__(self, app, input_name='_method'):
+        self.app = app
+        self.input_name = input_name
+
+    def __call__(self, environ, start_response):
+        request = Request(environ)
+
+        if self.input_name in request.form:
+            method = request.form[self.input_name].upper()
+
+            if method in ['GET', 'POST', 'PUT', 'DELETE']:
+                environ['REQUEST_METHOD'] = method
+
+        return self.app(environ, start_response)
+
 
 
 # Routes
@@ -103,17 +126,20 @@ def dashboard():
     operations = list(map((lambda wallet: wallet.operations), wallets))
     # Making flat list
     flat_operations = [op for ops in operations for op in ops]
-
-    income_ops = list(filter((lambda operation: operation.op_type == 'income'), flat_operations))
+    # Sort operations descending
+    flat_operations.sort(key=lambda x: x.created, reverse=True)
+    # Filtering operations to see income only
+    income_ops = list(filter((lambda operation: operation.op_type.name == 'income'), flat_operations))
+    # Count sum...
     income_sum = sum(map((lambda operation: operation.total), income_ops))
-
+    # expense operations are not income operations
     expenses_ops = [op for op in flat_operations if op not in income_ops]
     expenses_sum = sum(map((lambda operation: operation.total), expenses_ops))
     
     context = {
         'balance': balance,
         'wallets': wallets,
-        'operations': flat_operations,
+        'operations': flat_operations[:10],
         'income_sum': income_sum,
         'expenses_sum': expenses_sum,
     }
@@ -194,26 +220,63 @@ class EditWallet(MethodView):
         flash('Wrong wallet', category='danger')
         return redirect(url_for('dashboard'))
 
+    
 app.add_url_rule('/wallet/edit/<int:id>', view_func=EditWallet.as_view('edit_wallet'))
 
 
-class CreateOperation(MethodView):
-    def get(self, id):
-        form = OperationForm()
-        wallet = Wallet.query.get(id)
-        categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).filter(Category.cat_type == request.args['type']).all()
-        category_choices = [(cat.id, cat.name) for cat in categories]
+@app.route('/wallet/delete/<int:id>', methods=['POST'])
+def delete_wallet(id):
+    wallet = Wallet.query.get(id)
+    db.session.delete(wallet)
+    db.session.commit()
+    
+    flash('Wallet deleted', category='info')
+    return redirect(url_for('dashboard'))
 
-        form.op_type = request.args['type']
-        form.category.choices = category_choices
-        context = {
-            'form': form,
-            'wallet': wallet,
-        }
+
+@app.route(
+    '/wallet/<int:wallet_id>/operation/create/type/<int:type_id>',
+    methods=['GET', 'POST'])
+@login_required
+def create_operation(wallet_id, type_id):
+    form = OperationForm(request.form)
+    wallet = Wallet.query.get(wallet_id)
+
+    op_type = Type.query.get(type_id)
+    # all user categories
+    user_categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).all()
+    # Categories with current operation type
+    categories = [x for x in user_categories if x.cat_type.name == op_type.name]
+    # Make list of tuples with choices for WTForm
+    category_choices = [(cat.id, cat.name) for cat in categories]
+
+    form.type_id.data = op_type.id
+    form.category.choices = category_choices
+    context = {
+        'form': form,
+        'wallet': wallet,
+    }
+   
+   
+    if request.method == 'POST' and form.validate():
+        if legal_wallet(wallet_id):
+            operation = Operation(
+                total=form.total.data,
+                type_id=form.type_id.data,
+                category_id = form.category.data,
+                wallet_id=wallet_id
+            )
+            db.session.add(operation)
+            db.session.commit()
+
+            flash('Operation successfully submitted', category='success')
+            return redirect(url_for('dashboard'))
+
+        flash('Illegal operation', category='danger')
         return render_template('create_operation.html', **context)
 
 
-app.add_url_rule('/wallet/<int:id>/operation/create', view_func=CreateOperation.as_view('create_operation'))
+    return render_template('create_operation.html', **context)
 
 
 if __name__ == '__main__':

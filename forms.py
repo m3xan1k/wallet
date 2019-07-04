@@ -34,4 +34,4 @@ class WalletForm(Form):
 class OperationForm(Form):
     total = DecimalField('Total', default=Decimal('0.00'), validators=[InputRequired()])
     category = SelectField('Category', coerce=int)
-    op_type = HiddenField('')
+    type_id = HiddenField('')

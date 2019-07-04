@@ -30,19 +30,21 @@ class Wallet(db.Model):
     pay_type = db.Column(db.String(30), default='cash')
     balance = db.Column(db.DECIMAL, default=Decimal('0.00'))
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE'))
 
     operations = db.relationship('Operation', backref='wallet', lazy=True)
 
     created = db.Column(db.DateTime, default=datetime.now())
 
-    def change_balance(self, op_type, amount):
-        op_types = {
+    def change_balance(self, op_type_id, amount):
+        op_type = Type.query.get(op_type_id)
+
+        types = {
             'income': Decimal(amount),
             'expense': Decimal(-amount),
         }
 
-        self.balance += op_types[op_type]
+        self.balance += types[op_type.name]
 
 
     def __repr__(self):
@@ -54,22 +56,22 @@ class Operation(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     total = db.Column(db.DECIMAL, default=Decimal('0.00'))
-    op_type = db.Column(db.String(30), nullable=False)
+    type_id = db.Column(db.Integer, db.ForeignKey('types.id'))
 
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.id', onupdate="CASCADE", ondelete="CASCADE"))
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'))
 
-    wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id', onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id', onupdate='CASCADE', ondelete='CASCADE'))
 
     created = db.Column(db.DateTime, default=datetime.now())
 
-    def __init__(self, total, op_type, wallet_id, category_id=None):
+    def __init__(self, total, type_id, wallet_id, category_id=None):
         self.total = total
-        self.op_type = op_type
+        self.type_id = type_id
         self.category_id = category_id
         self.wallet_id = wallet_id
 
         wallet = Wallet.query.get(wallet_id)
-        wallet.change_balance(op_type, total)
+        wallet.change_balance(type_id, total)
 
     def __repr__(self):
         return f'<Operation id: {self.id}, wallet_id: {self.wallet_id}, category: {self.category_id}, total: {self.total}>'
@@ -81,9 +83,9 @@ class Category(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(30), default='Salary')
-    cat_type = db.Column(db.String(30), nullable=False, default='expense')
+    type_id = db.Column(db.Integer, db.ForeignKey('types.id'))
 
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', onupdate="CASCADE", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE'))
     operations = db.relationship('Operation', backref='category', lazy=True)
 
     created = db.Column(db.DateTime, default=datetime.now())
@@ -91,6 +93,18 @@ class Category(db.Model):
     def __repr__(self):
         return f'<Category id: {self.id}, name: {self.name}, user_id: {self.user_id}>'
 
+
+class Type(db.Model):
+    __tablename__ = 'types'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(30), nullable=False)
+
+    operations = db.relationship('Operation', backref='op_type', lazy=True)
+    categories = db.relationship('Category', backref='cat_type', lazy=True)
+
+    def __repr__(self):
+        return f'<Type id: {self.id}, name: {self.name}>'
 
 if __name__ == '__main__':
     pass

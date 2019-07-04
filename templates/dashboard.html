@@ -17,10 +17,10 @@
                 <div class="card-header">{{ wallet.name }} | {{ wallet.pay_type }}</div>
                 <div class="card-body">
                     <h5 class="card-title">Wallet balance: {{ wallet.balance }}</h5>
-                    <a href="/wallet/{{ wallet.id }}/operation/create?type=income" class="btn btn-light">
+                    <a href="/wallet/{{ wallet.id }}/operation/create/type/1" class="btn btn-light">
                         +
                     </a>
-                    <a href="/wallet/{{ wallet.id }}/operation/create?type=expense" class="btn btn-light">
+                    <a href="/wallet/{{ wallet.id }}/operation/create/type/2" class="btn btn-light">
                         —
                     </a>
                     <a href="/wallet/edit/{{wallet.id}}" class="btn btn-secondary">Edit Wallet</a>
@@ -36,9 +36,12 @@
     {% else %}
     <div class="text-center">
         <h3>You have no wallets yet.</h3>
-        <a href="/wallet/create" class="btn btn-dark">Create Wallet</a>
     </div>
     {% endif %}
+    <div class="text-center">
+        <hr class="my-4">
+        <a href="/wallet/create" class="btn btn-dark">Create Wallet</a>
+    </div>
     </div>
 
     <div class="row">
@@ -48,7 +51,7 @@
                 <h3 class="text-center mb-3">Last operations</h3>
                 {% if operations %}
                     {% for operation in operations %}
-                        <div class="alert alert-{{ 'success' if operation.op_type == 'income' else 'danger' }}">
+                        <div class="alert alert-{{ 'success' if operation.op_type.name == 'income' else 'danger' }}">
                             <div class="row px-3" >
                                 <div class="col-4 p-0 m-0 align-self-center text-dark">
                                     <p class="mb-0  font-weight-bold">{{ operation.created.strftime('%-d %b') }}</p>
