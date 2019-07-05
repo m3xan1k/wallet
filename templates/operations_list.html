@@ -1,0 +1,37 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+
+<h1 class="text-center">{{ current_user.username }}'s Categories</h1>
+
+<div class="jumbotron bg-white">
+    <div class="mx-5">
+        {% if operations %}
+                    {% for operation in operations %}
+                    <div class="mx-5">
+                        <div class="alert alert-{{ 'success' if operation.op_type.name == 'income' else 'danger' }}">
+                            <div class="row px-3" >
+                                <div class="col-3 p-0 m-0 align-self-center text-dark">
+                                    <p class="mb-0  font-weight-bold">{{ operation.created.strftime('%-d %b') }}</p>
+                                    <p class="mb-0">{{ operation.created.strftime('%H:%M') }}</p>
+                                </div>
+                                <div class="col-3 p-0 m-0 align-self-center text-dark">
+                                   <p class="mb-0  font-weight-bold">{{ operation.category.name }}</p>
+                                </div>
+                                <div class="col-3 p-0 m-0 align-self-center">
+                                    <h4 class="mb-0 text-right"><span class="badge badge-light">{{ operation.total }}</span></h4>
+                                </div>
+                                <div class="col-3 p-0 m-0 align-self-center">
+                                    <h4 class="mb-0 text-right"><a href="{{ url_for('edit_operation', user_id=current_user.id, op_id=operation.id) }}" class="btn btn-secondary">Edit</a></h4>
+                                </div>
+                            </div>
+                        </div>
+                        </div>
+                    {% endfor %}
+                    {% else %}
+                    <p class="text-center">No operations yet</p>
+                {% endif %}
+    </div>
+</div>
+
+{% endblock content %}

@@ -1,0 +1,23 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+
+<h1 class="text-center">Create Operation</h1>
+
+<form action="{{ url_for('edit_operation', user_id=current_user.id, op_id=operation.id) }}" method="post">
+
+    {% for field in form %}
+        <div class="form-group">
+            {{ field.label }}
+            {{ field(class_="form-control") }}
+        </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-dark">Submit</button>
+</form>
+<h2 class="my-3">Or you can...</h2>
+<form action="/operation/delete/{{ operation.id }}" method="post">
+    <input type="hidden">
+    <button type='submit' class="btn btn-danger">Delete</button>
+</form>
+
+{% endblock content %}

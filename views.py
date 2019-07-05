@@ -142,7 +142,7 @@ class EditWallet(MethodView):
     @login_required
     def get(self, id):
         if legal_wallet(id):
-            wallet = Wallet.query.get(id)
+            wallet = Wallet.query.get_or_404(id)
             form = WalletForm(
                 name=wallet.name,
                 pay_type=wallet.pay_type,
@@ -161,7 +161,7 @@ class EditWallet(MethodView):
     @login_required
     def post(self, id):
         if legal_wallet(id):
-            wallet = Wallet.query.get(id)
+            wallet = Wallet.query.get_or_404(id)
             form = WalletForm(request.form)
             if form.validate():
                 
@@ -190,7 +190,7 @@ app.add_url_rule('/wallet/edit/<int:id>', view_func=EditWallet.as_view('edit_wal
 
 @app.route('/wallet/delete/<int:id>', methods=['POST'])
 def delete_wallet(id):
-    wallet = Wallet.query.get(id)
+    wallet = Wallet.query.get_or_404(id)
     db.session.delete(wallet)
     db.session.commit()
     
@@ -204,9 +204,9 @@ def delete_wallet(id):
 @login_required
 def create_operation(wallet_id, type_id):
     form = OperationForm(request.form)
-    wallet = Wallet.query.get(wallet_id)
+    wallet = Wallet.query.get_or_404(wallet_id)
 
-    op_type = Type.query.get(type_id)
+    op_type = Type.query.get_or_404(type_id)
     # all user categories
     user_categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).all()
     # Categories with current operation type
@@ -245,7 +245,7 @@ def create_operation(wallet_id, type_id):
 
 @app.route('/category/create', methods=['GET', 'POST'])
 @login_required
-def get():
+def create_category():
     form = CategoryForm(request.form)
     c_types = [(c_type.id, c_type.name) for c_type in Type.query.all()]
     form.type_id.choices = c_types
@@ -263,3 +263,105 @@ def get():
         return redirect(url_for('dashboard'))
 
     return render_template('create_category.html', form=form)
+
+
+@app.route('/categories')
+@login_required
+def categories_list():
+    categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).all()
+    return render_template('categories_list.html', categories=categories)
+
+@app.route('/category/edit/<int:id>', methods=['GET', 'POST'])
+@login_required
+def edit_category(id):
+    category = Category.query.get_or_404(id)
+    form = CategoryForm(request.form)
+
+    c_types = [(c_type.id, c_type.name) for c_type in Type.query.all()]
+    form.type_id.choices = c_types
+    form.name.data = category.name
+
+    if request.method == 'POST' and form.validate():
+        form = CategoryForm(request.form)
+        category.name = form.name.data
+        category.type_id = form.type_id.data
+        db.session.commit()
+
+        flash('Category was updated', category='info')
+        return redirect(url_for('categories_list'))
+
+    context = {
+        'form': form,
+        'category': category
+    }
+    return render_template('edit_category.html', **context)
+
+
+@app.route('/category/delete/<int:id>', methods=['POST'])
+@login_required
+def delete_category(id):
+    category = Category.query.get_or_404(id)
+    db.session.delete(category)
+    db.session.commit()
+    
+    flash('Category was deleted', category='info')
+    return redirect(url_for('categories_list'))
+
+
+@app.route('/operations')
+@login_required
+def operations_list():
+    wallets = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).all()
+    operations = list(map((lambda w: w.operations), wallets))
+    flat_operations = [op for ops in operations for op in ops]
+    return render_template('operations_list.html', operations=flat_operations)
+
+
+@app.route('/user/<int:user_id>/operation/edit/<int:op_id>', methods=['GET', 'POST'])
+@login_required
+def edit_operation(user_id, op_id):
+    operation = Operation.query.get_or_404(op_id)
+
+    wallets = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).all()
+    operations = list(map((lambda w: w.operations), wallets))
+    flat_operations = [op for ops in operations for op in ops]
+    
+
+    if current_user.id != user_id or operation not in flat_operations:
+        flash('Wrong operation', category='info')
+        return redirect(url_for('operations_list'))
+
+    
+    form = OperationForm(request.form)
+
+    user_categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).all()
+    # Categories with current operation type
+    categories = [x for x in user_categories if x.cat_type.name == operation.op_type.name]
+    # Make list of tuples with choices for WTForm
+    category_choices = [(cat.id, cat.name) for cat in categories]
+
+    form.category.choices = category_choices
+    form.total.data = operation.total
+    form.type_id.data = operation.type_id
+
+    if request.method == 'POST' and form.validate():
+        form = OperationForm(request.form)
+        if operation.total > form.total.data:
+            wallet = Wallet.query.get(operation.wallet_id)
+            wallet.balance += (operation.total - form.total.data)
+        elif operation.total < form.total.data:
+            wallet = Wallet.query.get(operation.wallet_id)
+            wallet.balance -= (operation.total - form.total.data)
+            
+        operation.total = form.total.data
+        operation.category_id = form.category.data
+        db.session.commit()
+        return redirect(url_for('operations_list'))
+
+    context = {
+        'form': form,
+        'operation': operation
+    }
+
+    return render_template('edit_operation.html', **context)
+    

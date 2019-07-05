@@ -44,7 +44,11 @@
     </div>
     <div class="text-center">
         <hr class="my-4">
-        <a href="/category/create" class="btn btn-dark">Create Category</a>
+        <a href="{{ url_for('categories_list') }}" class="btn btn-dark">All Categories</a>
+    </div>
+    <div class="text-center">
+        <hr class="my-4">
+        <a href="{{ url_for('create_category') }}" class="btn btn-dark">Create Category</a>
     </div>
     </div>
 
@@ -73,6 +77,7 @@
                     {% else %}
                     <p class="text-center">No operations yet</p>
                 {% endif %}
+                <a href="{{ url_for('operations_list') }}" class="btn btn-secondary">All Operations</a>
             </div>
         </div>
 
