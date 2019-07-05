@@ -35,3 +35,8 @@ class OperationForm(Form):
     total = DecimalField('Total', default=Decimal('0.00'), validators=[InputRequired()])
     category = SelectField('Category', coerce=int)
     type_id = HiddenField('')
+
+
+class CategoryForm(Form):
+    name = StringField('Category Name', [InputRequired()])
+    type_id = SelectField('Type', coerce=int)

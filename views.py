@@ -241,3 +241,25 @@ def create_operation(wallet_id, type_id):
 
 
     return render_template('create_operation.html', **context)
+
+
+@app.route('/category/create', methods=['GET', 'POST'])
+@login_required
+def get():
+    form = CategoryForm(request.form)
+    c_types = [(c_type.id, c_type.name) for c_type in Type.query.all()]
+    form.type_id.choices = c_types
+
+    if request.method == 'POST' and form.validate():
+        new_category = Category(
+            name=form.name.data,
+            type_id=form.type_id.data,
+            user_id=current_user.id
+        )
+        db.session.add(new_category)
+        db.session.commit()
+        
+        flash('Category successfully created', category='success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('create_category.html', form=form)
