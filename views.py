@@ -387,4 +387,45 @@ def delete_operation(user_id, op_id):
 
     flash('Operation deleted', category='info')
     return redirect(url_for('operations_list'))
+
+@app.route('/wallet/<int:id>/transfer/create', methods=['GET', 'POST'])
+@login_required
+def create_transfer(id):
+    wallet = Wallet.query.get(id)
+    if not legal_wallet(id):
+        flash('Wrong wallet', category='info')
+        return redirect(url_for('dashboard'))
+
+    form = TransferForm(request.form)
+
+    all_wallets = current_user.get_wallets()
+    choice_wallets = list(filter((lambda w: w != wallet), all_wallets))
+    
+    form.wallet.choices = [(w.id, w.name) for w in choice_wallets]
+
+    if request.method == 'POST' and form.validate():
+        out_transfer = Operation(
+            total = form.total.data,
+            type_id = 2,
+            wallet_id = wallet.id,
+            category_id = Category.query.filter(Category.name == 'transfer').filter(Category.type_id == 2).first().id
+        )
+        in_transfer = Operation(
+            total = form.total.data,
+            type_id = 1,
+            wallet_id = form.wallet.data,
+            category_id = Category.query.filter(Category.name == 'transfer').filter(Category.type_id == 1).first().id
+        )
+        
+        db.session.add_all([out_transfer, in_transfer])
+        db.session.commit()
+
+        flash('Transfer created', category='success')
+        return redirect(url_for('dashboard'))
+
+    context = {
+        'wallet': wallet,
+        'form': form
+    }
+    return render_template('create_transfer.html', **context)
     

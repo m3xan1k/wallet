@@ -1,0 +1,17 @@
+{% extends 'layouts/base.html' %}
+
+{% block content %}
+
+<h1 class="text-center">Create Transfer</h1>
+
+<form action="{{ url_for('create_transfer', id=wallet.id) }}" method="post">
+    {% for field in form %}
+        <div class="form-group">
+            {{ field.label }}
+            {{ field(class_="form-control") }}
+        </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-secondary">Submit</button>
+</form>
+
+{% endblock content %}

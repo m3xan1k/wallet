@@ -40,3 +40,7 @@ class OperationForm(Form):
 class CategoryForm(Form):
     name = StringField('Category Name', [InputRequired()])
     type_id = SelectField('Type', coerce=int)
+
+class TransferForm(Form):
+    total = DecimalField('Total', default=Decimal('0.00'), validators=[InputRequired()])
+    wallet = SelectField('Wallet', coerce=int)
