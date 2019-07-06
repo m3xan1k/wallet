@@ -6,6 +6,8 @@ from passlib.hash import sha256_crypt
 from decimal import Decimal
 from flask import render_template, request, redirect, url_for, flash
 from flask.views import MethodView
+import os
+from werkzeug.utils import secure_filename
 
 
 # Login
@@ -23,6 +25,11 @@ def load_user(id):
 def legal_wallet(wallet_id):
     wallet = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).filter(Wallet.id == wallet_id).first()
     return wallet if wallet else None
+
+
+ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
 # Routes
@@ -214,12 +221,21 @@ def create_operation(wallet_id, type_id):
    
     if request.method == 'POST' and form.validate():
         if legal_wallet(wallet_id):
+            file = request.files.get(form.image.name)
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
             operation = Operation(
                 total=form.total.data,
                 type_id=form.type_id.data,
                 category_id = form.category.data,
-                wallet_id=wallet_id
+                wallet_id=wallet_id,
+                
             )
+            operation.filename=filename,
+            operation.description=form.description.data
+            
             db.session.add(operation)
             db.session.commit()
 

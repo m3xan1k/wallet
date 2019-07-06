@@ -99,6 +99,9 @@ class Operation(db.Model):
 
     wallet_id = db.Column(db.Integer, db.ForeignKey('wallets.id', onupdate='CASCADE', ondelete='CASCADE'))
 
+    filename = db.Column(db.String(255))
+    description = db.Column(db.String(150))
+
     created = db.Column(db.DateTime, default=datetime.now())
 
     def __init__(self, total, type_id, wallet_id, category_id=None):

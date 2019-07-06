@@ -4,12 +4,16 @@
 
 <h1 class="text-center">Create Operation</h1>
 
-<form action="/wallet/{{ wallet.id }}/operation/create/type/{{ form.type_id.data }}" method="post">
+<form enctype="multipart/form-data" action="/wallet/{{ wallet.id }}/operation/create/type/{{ form.type_id.data }}" method="post">
 
     {% for field in form %}
         <div class="form-group">
             {{ field.label }}
-            {{ field(class_="form-control") }}
+            {% if field.name == 'image' %}
+                {{ field(class_="form-control-file") }}
+            {% else %}
+                {{ field(class_="form-control") }}
+            {% endif %}
         </div>
     {% endfor %}
     <button type="submit" class="btn btn-dark">Submit</button>

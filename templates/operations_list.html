@@ -16,14 +16,37 @@
                                     <p class="mb-0">{{ operation.created.strftime('%H:%M') }}</p>
                                 </div>
                                 <div class="col-3 p-0 m-0 align-self-center text-dark">
-                                   <p class="mb-0  font-weight-bold">{{ operation.category.name }}</p>
+                                   <p class="mb-0  font-weight-bold">{{ operation.category.name }} {% if operation.filename %}
+                                    <img class="operation-image" src="{{ url_for('static', filename='uploads/') }}{{ operation.filename }}" alt="" style="width:50px;height:50px">
+                                   {% endif %}</p>
+                                   
                                 </div>
                                 <div class="col-3 p-0 m-0 align-self-center">
                                     <h4 class="mb-0 text-right"><span class="badge badge-light">{{ operation.total }}</span></h4>
                                 </div>
                                 <div class="col-3 p-0 m-0 align-self-center">
-                                    <h4 class="mb-0 text-right"><a href="{{ url_for('edit_operation', user_id=current_user.id, op_id=operation.id) }}" class="btn btn-secondary">Edit</a></h4>
+                                    <h4 class="mb-0 text-right"><button class="btn btn-light details">Details</button> <a href="{{ url_for('edit_operation', user_id=current_user.id, op_id=operation.id) }}" class="btn btn-secondary">Edit</a></h4>
                                 </div>
+                            </div>
+                            <!-- The Modal -->
+                            <div class="modal">
+
+                                <!-- Modal content -->
+                                <div class="modal-content">
+                                    <span class="close">&times;</span>
+                                    
+                                   <div class="card">
+                                    {% if operation.filename %}
+                                    <img class="card-image-top" src="{{ url_for('static', filename='uploads/') }}{{ operation.filename }}">
+                                   {% endif %}
+                                    <div class="card-body">
+                                        <h4 class="card-title">{{ operation.total }}</h4>
+                                        <h5>{{ operation.created }}</h5>
+                                        <p class="card-text">{{ operation.description }}</p>
+                                    </div>
+                                    </div>
+                                </div>
+
                             </div>
                         </div>
                         </div>
@@ -35,3 +58,7 @@
 </div>
 
 {% endblock content %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% endblock scripts %}

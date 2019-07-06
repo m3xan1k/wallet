@@ -1,7 +1,8 @@
 from wtforms import Form
-from wtforms import StringField, BooleanField, TextAreaField, PasswordField, SelectField, DecimalField, HiddenField
-from wtforms.validators import InputRequired, Length, EqualTo, Email, DataRequired
+from wtforms import StringField, BooleanField, TextAreaField, PasswordField, SelectField, DecimalField, HiddenField, FileField
+from wtforms.validators import InputRequired, Length, EqualTo, Email, DataRequired, regexp
 from decimal import Decimal
+
 
 
 # Forms
@@ -35,6 +36,8 @@ class OperationForm(Form):
     total = DecimalField('Total', default=Decimal('0.00'), validators=[InputRequired()])
     category = SelectField('Category', coerce=int)
     type_id = HiddenField('')
+    image = FileField('Image File')
+    description = StringField('Description')
 
 
 class CategoryForm(Form):
