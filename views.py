@@ -83,27 +83,16 @@ app.add_url_rule('/login', view_func=Login.as_view('login'))
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    wallets = db.session.query(Wallet).join(User).filter(User.username == current_user.username).all()
-
-    balance = sum(map((lambda wallet: wallet.balance), wallets))
-    # List of lists
-    operations = list(map((lambda wallet: wallet.operations), wallets))
-    # Making flat list
-    flat_operations = [op for ops in operations for op in ops]
-    # Sort operations descending
-    flat_operations.sort(key=lambda x: x.created, reverse=True)
-    # Filtering operations to see income only
-    income_ops = list(filter((lambda operation: operation.op_type.name == 'income'), flat_operations))
-    # Count sum...
-    income_sum = sum(map((lambda operation: operation.total), income_ops))
-    # expense operations are not income operations
-    expenses_ops = [op for op in flat_operations if op not in income_ops]
-    expenses_sum = sum(map((lambda operation: operation.total), expenses_ops))
+    wallets = current_user.get_wallets()
+    balance = current_user.get_balance()
+    operations = current_user.get_operations()
+    income_sum = current_user.get_income_sum()
+    expenses_sum = current_user.get_expenses_sum()
     
     context = {
         'balance': balance,
         'wallets': wallets,
-        'operations': flat_operations[:10],
+        'operations': operations[:10],
         'income_sum': income_sum,
         'expenses_sum': expenses_sum,
     }
@@ -204,11 +193,12 @@ def delete_wallet(id):
 @login_required
 def create_operation(wallet_id, type_id):
     form = OperationForm(request.form)
-    wallet = Wallet.query.get_or_404(wallet_id)
 
+    wallet = Wallet.query.get_or_404(wallet_id)
     op_type = Type.query.get_or_404(type_id)
+
     # all user categories
-    user_categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).all()
+    user_categories = current_user.get_all_categories()
     # Categories with current operation type
     categories = [x for x in user_categories if x.cat_type.name == op_type.name]
     # Make list of tuples with choices for WTForm
@@ -247,6 +237,8 @@ def create_operation(wallet_id, type_id):
 @login_required
 def create_category():
     form = CategoryForm(request.form)
+    
+    # define choices for operation types
     c_types = [(c_type.id, c_type.name) for c_type in Type.query.all()]
     form.type_id.choices = c_types
 
@@ -268,7 +260,7 @@ def create_category():
 @app.route('/categories')
 @login_required
 def categories_list():
-    categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).all()
+    categories = current_user.get_all_categories()
     return render_template('categories_list.html', categories=categories)
 
 @app.route('/category/edit/<int:id>', methods=['GET', 'POST'])
@@ -277,6 +269,7 @@ def edit_category(id):
     category = Category.query.get_or_404(id)
     form = CategoryForm(request.form)
 
+    # define choices for operation types
     c_types = [(c_type.id, c_type.name) for c_type in Type.query.all()]
     form.type_id.choices = c_types
     form.name.data = category.name
@@ -311,10 +304,9 @@ def delete_category(id):
 @app.route('/operations')
 @login_required
 def operations_list():
-    wallets = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).all()
-    operations = list(map((lambda w: w.operations), wallets))
-    flat_operations = [op for ops in operations for op in ops]
-    return render_template('operations_list.html', operations=flat_operations)
+    wallets = current_user.get_wallets()
+    operations = current_user.get_operations()
+    return render_template('operations_list.html', operations=operations)
 
 
 @app.route('/user/<int:user_id>/operation/edit/<int:op_id>', methods=['GET', 'POST'])
@@ -322,19 +314,17 @@ def operations_list():
 def edit_operation(user_id, op_id):
     operation = Operation.query.get_or_404(op_id)
 
-    wallets = db.session.query(Wallet).join(User).filter(Wallet.user_id == current_user.id).all()
-    operations = list(map((lambda w: w.operations), wallets))
-    flat_operations = [op for ops in operations for op in ops]
+    wallets = current_user.get_wallets()
+    operations = current_user.get_operations()
     
-
-    if current_user.id != user_id or operation not in flat_operations:
+    if current_user.id != user_id or operation not in operations:
         flash('Wrong operation', category='info')
         return redirect(url_for('operations_list'))
 
     
     form = OperationForm(request.form)
 
-    user_categories = db.session.query(Category).join(User).filter(Category.user_id == current_user.id).all()
+    user_categories = current_user.get_all_categories()
     # Categories with current operation type
     categories = [x for x in user_categories if x.cat_type.name == operation.op_type.name]
     # Make list of tuples with choices for WTForm
@@ -346,12 +336,20 @@ def edit_operation(user_id, op_id):
 
     if request.method == 'POST' and form.validate():
         form = OperationForm(request.form)
-        if operation.total > form.total.data:
-            wallet = Wallet.query.get(operation.wallet_id)
-            wallet.balance += (operation.total - form.total.data)
-        elif operation.total < form.total.data:
-            wallet = Wallet.query.get(operation.wallet_id)
-            wallet.balance -= (operation.total - form.total.data)
+        if operation.op_type.name == 'expense':
+            if operation.total > form.total.data:
+                wallet = Wallet.query.get(operation.wallet_id)
+                wallet.balance += (operation.total - form.total.data)
+            elif operation.total < form.total.data:
+                wallet = Wallet.query.get(operation.wallet_id)
+                wallet.balance -= (form.total.data - operation.total)
+        elif operation.op_type.name == 'income':
+            if operation.total > form.total.data:
+                wallet = Wallet.query.get(operation.wallet_id)
+                wallet.balance -= (operation.total - form.total.data)
+            elif operation.total < form.total.data:
+                wallet = Wallet.query.get(operation.wallet_id)
+                wallet.balance += (form.total.data - operation.total)
             
         operation.total = form.total.data
         operation.category_id = form.category.data
@@ -364,4 +362,29 @@ def edit_operation(user_id, op_id):
     }
 
     return render_template('edit_operation.html', **context)
+
+
+@app.route('/user/<int:user_id>/operation/delete/<int:op_id>', methods=['POST'])
+@login_required
+def delete_operation(user_id, op_id):
+    operation = Operation.query.get_or_404(op_id)
+
+    wallets = current_user.get_wallets()
+    operations = current_user.get_operations()
+    
+    if current_user.id != user_id or operation not in operations:
+        flash('Wrong operation', category='info')
+        return redirect(url_for('operations_list'))
+
+    wallet = Wallet.query.get_or_404(operation.wallet_id)
+    if operation.op_type.name == 'income':
+        wallet.balance -= operation.total
+    elif operation.op_type.name == 'expense':
+        wallet.balance += operation.total
+
+    db.session.delete(operation)
+    db.session.commit()
+
+    flash('Operation deleted', category='info')
+    return redirect(url_for('operations_list'))
     

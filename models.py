@@ -18,6 +18,43 @@ class User(db.Model, UserMixin):
 
     created = db.Column(db.DateTime, default=datetime.now())
 
+    def get_wallets(self):
+        wallets = db.session.query(Wallet).join(User).filter(User.username == self.username).all()
+        return wallets
+
+    def get_balance(self):
+        wallets = self.get_wallets()
+        balance = sum(map((lambda wallet: wallet.balance), wallets))
+        return balance
+
+    def get_operations(self):
+        wallets = self.get_wallets()
+        # List of lists
+        operations = list(map((lambda wallet: wallet.operations), wallets))
+        # Making flat list
+        flat_operations = [op for ops in operations for op in ops]
+        # Sort operations descending
+        flat_operations.sort(key=lambda x: x.created, reverse=True)
+
+        return flat_operations
+
+    def get_income_sum(self):
+        operations = self.get_operations()
+        income_ops = list(filter((lambda operation: operation.op_type.name == 'income'), operations))
+        # Count sum...
+        income_sum = sum(map((lambda operation: operation.total), income_ops))
+        return income_sum
+
+    def get_expenses_sum(self):
+        operations = self.get_operations()
+        expenses_ops = list(filter((lambda operation: operation.op_type.name == 'expense'), operations))
+        expenses_sum = sum(map((lambda operation: operation.total), expenses_ops))
+        return expenses_sum
+
+    def get_all_categories(self):
+        all_categories = db.session.query(Category).join(User).filter(Category.user_id == self.id).all()
+        return all_categories
+
     def __repr__(self):
         return f'<User username: {self.username}>'
 
